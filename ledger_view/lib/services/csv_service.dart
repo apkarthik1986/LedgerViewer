@@ -1,6 +1,7 @@
 import 'package:http/http.dart' as http;
 import 'package:csv/csv.dart';
 import 'package:excel/excel.dart';
+import 'dart:convert';
 import 'dart:io';
 import '../models/ledger_entry.dart';
 import '../models/customer.dart';
@@ -34,6 +35,49 @@ class CsvService {
       return parseCustomerData(csvData);
     } catch (e) {
       throw Exception('Error fetching customer data: $e');
+    }
+  }
+
+  /// Update master contact details via write API endpoint
+  static Future<void> updateMasterContactDetails({
+    required String writeApiUrl,
+    required Customer customer,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse(writeApiUrl),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'action': 'update_master_contact',
+          'customerId': customer.customerId,
+          'name': customer.name,
+          'mobileNumber': customer.mobileNumber,
+          'area': customer.area,
+          'gpay': customer.gpay,
+        }),
+      );
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw Exception(
+          'Failed to sync master contact details: HTTP ${response.statusCode}',
+        );
+      }
+
+      final body = response.body.trim();
+      if (body.isEmpty) return;
+
+      try {
+        final decoded = jsonDecode(body);
+        if (decoded is Map && decoded['success'] == false) {
+          final message = decoded['message']?.toString() ??
+              'Unknown error from master write API';
+          throw Exception(message);
+        }
+      } catch (_) {
+        // Non-JSON responses are accepted as long as status code is successful
+      }
+    } catch (e) {
+      throw Exception('Error updating master contact details: $e');
     }
   }
 

@@ -36,6 +36,7 @@ class HomeScreenState extends State<HomeScreen> {
   List<Customer> _allCustomers = [];
   bool _hasLoadedCustomers = false;
   bool _hasLedgerUrl = false;
+  String? _masterWriteApiUrl;
   bool _autoSearchTriggered = false;
 
   @override
@@ -54,6 +55,7 @@ class HomeScreenState extends State<HomeScreen> {
     // Try to load cached customer data
     final cachedData = await StorageService.getCachedMasterData();
     final ledgerUrl = await StorageService.getLedgerSheetUrl();
+    final masterWriteApiUrl = await StorageService.getMasterWriteApiUrl();
     
     if (cachedData != null) {
       final customers = CsvService.parseCustomerData(cachedData);
@@ -61,6 +63,7 @@ class HomeScreenState extends State<HomeScreen> {
         _allCustomers = customers;
         _hasLoadedCustomers = customers.isNotEmpty;
         _hasLedgerUrl = ledgerUrl != null && ledgerUrl.isNotEmpty;
+        _masterWriteApiUrl = masterWriteApiUrl;
       });
       
       // If initialSearchQuery is provided, use it
@@ -71,6 +74,11 @@ class HomeScreenState extends State<HomeScreen> {
           _searchLedger();
         }
       }
+    } else {
+      setState(() {
+        _hasLedgerUrl = ledgerUrl != null && ledgerUrl.isNotEmpty;
+        _masterWriteApiUrl = masterWriteApiUrl;
+      });
     }
   }
 
@@ -627,6 +635,13 @@ class HomeScreenState extends State<HomeScreen> {
                                 constraints: const BoxConstraints(),
                               ),
                             IconButton(
+                              icon: const Icon(Icons.edit, size: 20),
+                              onPressed: _showEditCustomerDetailsDialog,
+                              tooltip: 'Edit Master Contact Details',
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                            ),
+                            IconButton(
                               icon: const Icon(Icons.print, size: 20),
                               onPressed: () => _printCustomerDetails(context),
                               tooltip: 'Print Customer Details',
@@ -768,6 +783,150 @@ class HomeScreenState extends State<HomeScreen> {
       await launchUrl(phoneUri);
     } else {
       _showError('Could not launch phone dialer');
+    }
+  }
+
+  Future<void> _showEditCustomerDetailsDialog() async {
+    final customer = _selectedCustomer;
+    if (customer == null) return;
+
+    final mobileController = TextEditingController(text: customer.mobileNumber);
+    final areaController = TextEditingController(text: customer.area);
+    final gpayController = TextEditingController(text: customer.gpay);
+
+    await showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Edit Master Contact Details'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: mobileController,
+                keyboardType: TextInputType.phone,
+                decoration: const InputDecoration(
+                  labelText: 'Mobile Number',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: areaController,
+                decoration: const InputDecoration(
+                  labelText: 'Area',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: gpayController,
+                keyboardType: TextInputType.phone,
+                decoration: const InputDecoration(
+                  labelText: 'GPAY',
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.of(dialogContext).pop();
+              await _saveUpdatedCustomerDetails(
+                Customer(
+                  customerId: customer.customerId,
+                  name: customer.name,
+                  mobileNumber: mobileController.text.trim(),
+                  area: areaController.text.trim(),
+                  gpay: gpayController.text.trim(),
+                ),
+              );
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _saveUpdatedCustomerDetails(Customer updatedCustomer) async {
+    if (_masterWriteApiUrl == null || _masterWriteApiUrl!.trim().isEmpty) {
+      _showError('Please configure Master Write API URL in Settings to enable edits.');
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      await CsvService.updateMasterContactDetails(
+        writeApiUrl: _masterWriteApiUrl!.trim(),
+        customer: updatedCustomer,
+      );
+
+      final updatedCustomers = _allCustomers.map((customer) {
+        if (customer.customerId.toUpperCase() ==
+            updatedCustomer.customerId.toUpperCase()) {
+          return updatedCustomer;
+        }
+        return customer;
+      }).toList();
+
+      await _syncUpdatedCustomerInCache(updatedCustomer);
+
+      if (!mounted) return;
+      setState(() {
+        _allCustomers = updatedCustomers;
+        _selectedCustomer = updatedCustomer;
+        _isLoading = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Master contact details updated and synchronized'),
+          backgroundColor: Colors.green.shade600,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+      });
+      _showError(e.toString());
+    }
+  }
+
+  Future<void> _syncUpdatedCustomerInCache(Customer updatedCustomer) async {
+    final cachedData = await StorageService.getCachedMasterData();
+    if (cachedData == null || cachedData.isEmpty) return;
+
+    final updatedCache = cachedData.map((row) => List<dynamic>.from(row)).toList();
+    bool customerRowUpdated = false;
+
+    for (int i = 1; i < updatedCache.length; i++) {
+      final row = updatedCache[i];
+      final parsedCustomer = Customer.fromRow(row);
+
+      if (parsedCustomer.customerId.toUpperCase() ==
+          updatedCustomer.customerId.toUpperCase()) {
+        while (row.length < 4) {
+          row.add('');
+        }
+        row[1] = updatedCustomer.mobileNumber;
+        row[2] = updatedCustomer.area;
+        row[3] = updatedCustomer.gpay;
+        customerRowUpdated = true;
+        break;
+      }
+    }
+
+    if (customerRowUpdated) {
+      await StorageService.saveCachedMasterData(updatedCache);
     }
   }
 
