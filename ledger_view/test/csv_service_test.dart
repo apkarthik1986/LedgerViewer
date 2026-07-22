@@ -139,9 +139,9 @@ void main() {
   group('CsvService - Customer Parsing', () {
     test('parseCustomerData parses customer data correctly', () {
       final testData = [
-        ['NAME', 'Mobile No', 'Area', 'GPAY'],  // Header row
-        ['133.Arumugam', '12345466', 'NSK', '9876543210'],
-        ['254.Murugesan ', '98745621', 'Thiruverkadu', '8765432109'],
+        ['NAME', 'Mobile No', 'Area', 'Group', 'GPAY', 'Bank', 'A/C NO.'],  // Header row
+        ['133.Arumugam', '12345466', 'NSK', 'Retail', '9876543210', 'SBI', '133'],
+        ['254.Murugesan ', '98745621', 'Thiruverkadu', 'Wholesale', '8765432109', 'HDFC', '254'],
       ];
 
       final customers = CsvService.parseCustomerData(testData);
@@ -151,12 +151,18 @@ void main() {
       expect(customers[0].name, equals('Arumugam'));
       expect(customers[0].mobileNumber, equals('12345466'));
       expect(customers[0].area, equals('NSK'));
+      expect(customers[0].groupName, equals('Retail'));
       expect(customers[0].gpay, equals('9876543210'));
+      expect(customers[0].bank, equals('SBI'));
+      expect(customers[0].accountNumber, equals('133'));
       expect(customers[1].customerId, equals('254'));
       expect(customers[1].name, equals('Murugesan'));
       expect(customers[1].mobileNumber, equals('98745621'));
       expect(customers[1].area, equals('Thiruverkadu'));
+      expect(customers[1].groupName, equals('Wholesale'));
       expect(customers[1].gpay, equals('8765432109'));
+      expect(customers[1].bank, equals('HDFC'));
+      expect(customers[1].accountNumber, equals('254'));
     });
 
     test('parseCustomerData skips empty rows', () {
@@ -188,6 +194,26 @@ void main() {
       expect(customer.mobileNumber, equals('12345466'));
       expect(customer.area, equals('NSK'));
       expect(customer.gpay, equals('9876543210'));
+    });
+
+    test('fromRow parses using configured header indexes', () {
+      final customer = Customer.fromRow(
+        ['133.Arumugam', '12345466', 'NSK', 'Retail', '9876543210', 'SBI', '133'],
+        headerIndex: {
+          'name': 0,
+          'mobile no': 1,
+          'area': 2,
+          'group': 3,
+          'gpay': 4,
+          'bank': 5,
+          'a/c no.': 6,
+        },
+      );
+
+      expect(customer.customerId, equals('133'));
+      expect(customer.accountNumber, equals('133'));
+      expect(customer.groupName, equals('Retail'));
+      expect(customer.bank, equals('SBI'));
     });
 
     test('fromRow handles names without dots', () {

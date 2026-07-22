@@ -668,9 +668,21 @@ class HomeScreenState extends State<HomeScreen> {
                                   const SizedBox(height: 8),
                                   _buildDetailRow('Area', _selectedCustomer!.area),
                                 ],
+                                if (_selectedCustomer!.groupName.isNotEmpty) ...[
+                                  const SizedBox(height: 8),
+                                  _buildDetailRow('Group', _selectedCustomer!.groupName),
+                                ],
                                 if (_selectedCustomer!.gpay.isNotEmpty) ...[
                                   const SizedBox(height: 8),
                                   _buildDetailRow('GPAY', _selectedCustomer!.gpay),
+                                ],
+                                if (_selectedCustomer!.bank.isNotEmpty) ...[
+                                  const SizedBox(height: 8),
+                                  _buildDetailRow('Bank', _selectedCustomer!.bank),
+                                ],
+                                if (_selectedCustomer!.accountNumber.isNotEmpty) ...[
+                                  const SizedBox(height: 8),
+                                  _buildDetailRow('A/C NO.', _selectedCustomer!.accountNumber),
                                 ],
                               ],
                             ),
@@ -792,7 +804,9 @@ class HomeScreenState extends State<HomeScreen> {
 
     final mobileController = TextEditingController(text: customer.mobileNumber);
     final areaController = TextEditingController(text: customer.area);
+    final groupController = TextEditingController(text: customer.groupName);
     final gpayController = TextEditingController(text: customer.gpay);
+    final bankController = TextEditingController(text: customer.bank);
 
     await showDialog(
       context: context,
@@ -818,10 +832,24 @@ class HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 12),
               TextField(
+                controller: groupController,
+                decoration: const InputDecoration(
+                  labelText: 'Group',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
                 controller: gpayController,
                 keyboardType: TextInputType.phone,
                 decoration: const InputDecoration(
                   labelText: 'GPAY',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: bankController,
+                decoration: const InputDecoration(
+                  labelText: 'Bank',
                 ),
               ),
             ],
@@ -841,7 +869,10 @@ class HomeScreenState extends State<HomeScreen> {
                   name: customer.name,
                   mobileNumber: mobileController.text.trim(),
                   area: areaController.text.trim(),
+                  groupName: groupController.text.trim(),
                   gpay: gpayController.text.trim(),
+                  bank: bankController.text.trim(),
+                  accountNumber: customer.accountNumber,
                 ),
               );
             },
@@ -906,20 +937,56 @@ class HomeScreenState extends State<HomeScreen> {
     if (cachedData == null || cachedData.isEmpty) return;
 
     final updatedCache = cachedData.map((row) => List<dynamic>.from(row)).toList();
+    final headerIndex = _buildHeaderIndex(updatedCache.first);
+    final mobileColumn = _resolveHeaderIndex(
+      headerIndex,
+      ['mobile no', 'mobile no.', 'mobile number', 'mobile', 'phone'],
+      fallback: 1,
+    );
+    final areaColumn = _resolveHeaderIndex(headerIndex, ['area'], fallback: 2);
+    final groupColumn = _resolveHeaderIndex(headerIndex, ['group']);
+    final gpayColumn = _resolveHeaderIndex(
+      headerIndex,
+      ['gpay', 'g pay'],
+      fallback: 3,
+    );
+    final bankColumn = _resolveHeaderIndex(headerIndex, ['bank']);
+    final accountColumn = _resolveHeaderIndex(
+      headerIndex,
+      ['a/c no.', 'a/c no', 'ac no.', 'ac no', 'account no', 'account number'],
+    );
     bool customerRowUpdated = false;
 
     for (int i = 1; i < updatedCache.length; i++) {
       final row = updatedCache[i];
-      final parsedCustomer = Customer.fromRow(row);
+      final parsedCustomer = Customer.fromRow(row, headerIndex: headerIndex);
+      final updatedAccountId = updatedCustomer.accountNumber.isNotEmpty
+          ? updatedCustomer.accountNumber
+          : updatedCustomer.customerId;
+      final parsedAccountId = parsedCustomer.accountNumber.isNotEmpty
+          ? parsedCustomer.accountNumber
+          : parsedCustomer.customerId;
 
-      if (parsedCustomer.customerId.toUpperCase() ==
-          updatedCustomer.customerId.toUpperCase()) {
-        while (row.length < 4) {
+      if (parsedAccountId.toUpperCase() == updatedAccountId.toUpperCase() ||
+          parsedCustomer.customerId.toUpperCase() ==
+              updatedCustomer.customerId.toUpperCase()) {
+        final maxColumn = [
+          mobileColumn,
+          areaColumn,
+          groupColumn,
+          gpayColumn,
+          bankColumn,
+        ].where((index) => index >= 0).fold<int>(0, (max, index) => index > max ? index : max);
+
+        while (row.length <= maxColumn) {
           row.add('');
         }
-        row[1] = updatedCustomer.mobileNumber;
-        row[2] = updatedCustomer.area;
-        row[3] = updatedCustomer.gpay;
+        if (mobileColumn >= 0) row[mobileColumn] = updatedCustomer.mobileNumber;
+        if (areaColumn >= 0) row[areaColumn] = updatedCustomer.area;
+        if (groupColumn >= 0) row[groupColumn] = updatedCustomer.groupName;
+        if (gpayColumn >= 0) row[gpayColumn] = updatedCustomer.gpay;
+        if (bankColumn >= 0) row[bankColumn] = updatedCustomer.bank;
+        if (accountColumn >= 0) row[accountColumn] = updatedCustomer.accountNumber;
         customerRowUpdated = true;
         break;
       }
@@ -928,6 +995,29 @@ class HomeScreenState extends State<HomeScreen> {
     if (customerRowUpdated) {
       await StorageService.saveCachedMasterData(updatedCache);
     }
+  }
+
+  Map<String, int> _buildHeaderIndex(List<dynamic> headerRow) {
+    final headerIndex = <String, int>{};
+    for (int i = 0; i < headerRow.length; i++) {
+      final key = headerRow[i].toString().trim().toLowerCase();
+      if (key.isNotEmpty && !headerIndex.containsKey(key)) {
+        headerIndex[key] = i;
+      }
+    }
+    return headerIndex;
+  }
+
+  int _resolveHeaderIndex(
+    Map<String, int> headerIndex,
+    List<String> aliases, {
+    int fallback = -1,
+  }) {
+    for (final alias in aliases) {
+      final index = headerIndex[alias.toLowerCase()];
+      if (index != null) return index;
+    }
+    return fallback;
   }
 
   @override
