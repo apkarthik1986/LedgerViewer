@@ -22,26 +22,38 @@ class Customer {
     final area = row.length > 2 ? row[2].toString().trim() : '';
     final gpay = row.length > 3 ? row[3].toString().trim() : '';
 
-    // Split "CustomerID.Name" format
-    String customerId = '';
-    String name = '';
-
-    if (fullName.contains('.')) {
-      final dotIndex = fullName.indexOf('.');
-      customerId = fullName.substring(0, dotIndex).trim();
-      name = fullName.substring(dotIndex + 1).trim();
-    } else {
-      // If no dot, treat the whole thing as name
-      name = fullName;
-    }
+    final parsed = _parseCustomerName(fullName);
 
     return Customer(
-      customerId: customerId,
-      name: name,
+      customerId: parsed.$1,
+      name: parsed.$2,
       mobileNumber: mobile,
       area: area,
       gpay: gpay,
     );
+  }
+
+  static (String, String) _parseCustomerName(String fullName) {
+    if (fullName.contains('.')) {
+      final dotIndex = fullName.indexOf('.');
+      return (
+        fullName.substring(0, dotIndex).trim(),
+        fullName.substring(dotIndex + 1).trim(),
+      );
+    }
+
+    if (fullName.contains('_')) {
+      final parts = fullName
+          .split('_')
+          .map((part) => part.trim())
+          .where((part) => part.isNotEmpty)
+          .toList();
+      if (parts.length >= 2) {
+        return (parts.first, parts.last);
+      }
+    }
+
+    return ('', fullName);
   }
 
   /// Check if customer matches search query (case-insensitive)

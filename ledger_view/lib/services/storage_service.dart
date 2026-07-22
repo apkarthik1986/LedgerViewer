@@ -6,6 +6,7 @@ class StorageService {
   static const String _lastSearchKey = 'last_search';
   static const String _csvUrlKey = 'csv_url';
   static const String _masterSheetUrlKey = 'master_sheet_url';
+  static const String _masterWriteApiUrlKey = 'master_write_api_url';
   static const String _ledgerSheetUrlKey = 'ledger_sheet_url';
   static const String _migrationCompleteKey = 'migration_complete';
   static const String _cachedMasterDataKey = 'cached_master_data';
@@ -70,6 +71,18 @@ class StorageService {
   static Future<String?> getMasterSheetUrl() async {
     final prefs = await _getPrefs();
     return prefs.getString(_masterSheetUrlKey);
+  }
+
+  /// Save the Master sheet write API URL
+  static Future<void> saveMasterWriteApiUrl(String url) async {
+    final prefs = await _getPrefs();
+    await prefs.setString(_masterWriteApiUrlKey, url);
+  }
+
+  /// Get the Master sheet write API URL
+  static Future<String?> getMasterWriteApiUrl() async {
+    final prefs = await _getPrefs();
+    return prefs.getString(_masterWriteApiUrlKey);
   }
 
   /// Save the Ledger sheet URL

@@ -6,6 +6,7 @@ A modern Flutter Android app to view customer ledger data from Google Sheets CSV
 
 - 🔍 **Search by Customer Number**: Enter a customer number, name, or mobile number (e.g., "1139B", "Pushpa", "9876543210") to view their ledger
 - 👥 **Customer List**: Browse customer information from Master sheet with search and filter
+- ✏️ **Editable Master Contacts**: Update customer contact details in app and sync to the Master sheet through a write API
 - 📊 **Professional Ledger Display**: Clean, formatted view in the app; simplified print output with Date, Vch Type (first letter), Vch No., Debit, and Credit columns
 - 📈 **Balance Analysis**: Analyze customer balances with advanced filters for outstanding amounts and payment tracking
 - 🖨️ **Print/PDF Support**: Generate printable ledger statements with simplified format matching accounting requirements
@@ -20,7 +21,7 @@ A modern Flutter Android app to view customer ledger data from Google Sheets CSV
 The app contains 4 main screens accessible via bottom navigation:
 
 1. **Settings** - Configure the Google Sheets CSV URLs for Master sheet (customer list) and Ledger sheet (ledger data). Also customize the app theme to your preference.
-2. **Ledger Search** - Search for customer ledgers directly by entering a customer number, name, or mobile number
+2. **Ledger Search** - Search for customer ledgers directly by entering a customer number, name, or mobile number, and edit master contact details
 3. **Analysis** - Analyze customer balances with advanced filtering options:
    - Filter by balance amount (greater than or less than a specified amount)
    - Filter by days without credit (customers with no credit entries for N days from today)
@@ -49,18 +50,24 @@ Your theme preference is saved automatically and persists across app sessions.
    - Click **Publish** and copy the generated link
    - Repeat for each sheet you need to publish
    
-2. **In the app's Settings page, configure both URLs**:
+2. **(Optional for editing) Configure Master Write API URL**:
+   - Deploy a secure write endpoint (for example, Google Apps Script Web App) to update Master contact columns
+   - Add this URL in **Master Write API URL** in app settings
+   - Ledger sheet remains read-only and continues to use CSV URL
+
+3. **In the app's Settings page, configure required URLs**:
    - **Master Sheet URL**: The CSV link for your customer list (Master sheet)
+   - **Master Write API URL**: Required only when editing/syncing master contact details from app
    - **Ledger Sheet URL**: The CSV link for your ledger data (Ledger sheet)
    - **WhatsApp Country Code**: Set the default country code prefix (default: +91) for WhatsApp sharing
 
-3. **Search for Ledger**:
+4. **Search for Ledger**:
    - Use the **Ledger Search** tab to enter a customer number, name, or mobile number (e.g., "1033", "1035", "1139B", "1525", "Pushpa", "9876543210")
    - The search field supports text input for flexible searching
    - Or use the **Customers** tab to browse and click on a customer to view their ledger
    - Ledger data is fetched fresh from Google Sheets on each search
    
-4. **Share Ledger**:
+5. **Share Ledger**:
    - From the ledger view, tap the share button to access sharing options in the following order:
      1. **WhatsApp (PDF)** - Share ledger as PDF via WhatsApp
      2. **WhatsApp (Image)** - Share ledger as image via WhatsApp
@@ -71,7 +78,7 @@ Your theme preference is saved automatically and persists across app sessions.
    - WhatsApp will open with the file ready to send to the specified contact
    - SMS will open with a text summary of the ledger including totals and balance
    
-5. **Refresh Data**:
+6. **Refresh Data**:
    - Use the refresh button in the Ledger Search screen to update only the master data (customer list)
    - Ledger data is always fetched fresh when you search, so no need to refresh it separately
 
@@ -108,6 +115,10 @@ The app expects CSV data in the following format:
 - Column A: "Ledger:" header or dates
 - Column B: Customer number and name (format: "number.name") or particulars
 - Columns C-G: Date range, voucher type, voucher number, debit, credit
+
+Master sheet customer identifier (Column A) supports both:
+- `account.name`
+- `account_Savings_name` (first segment is account, last segment is name)
 
 Example:
 ```

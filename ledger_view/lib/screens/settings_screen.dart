@@ -17,6 +17,7 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   final TextEditingController _masterSheetUrlController = TextEditingController();
+  final TextEditingController _masterWriteApiUrlController = TextEditingController();
   final TextEditingController _ledgerSheetUrlController = TextEditingController();
   final TextEditingController _countryCodePrefixController = TextEditingController();
   bool _isSaving = false;
@@ -33,6 +34,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _loadSettings() async {
     final masterUrl = await StorageService.getMasterSheetUrl();
+    final masterWriteApiUrl = await StorageService.getMasterWriteApiUrl();
     final ledgerUrl = await StorageService.getLedgerSheetUrl();
     final countryCodePrefix = await StorageService.getCountryCodePrefix();
     setState(() {
@@ -42,12 +44,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (ledgerUrl != null) {
         _ledgerSheetUrlController.text = ledgerUrl;
       }
+      if (masterWriteApiUrl != null) {
+        _masterWriteApiUrlController.text = masterWriteApiUrl;
+      }
       _countryCodePrefixController.text = countryCodePrefix;
     });
   }
 
   Future<void> _saveSettings() async {
     final masterUrl = _masterSheetUrlController.text.trim();
+    final masterWriteApiUrl = _masterWriteApiUrlController.text.trim();
     final ledgerUrl = _ledgerSheetUrlController.text.trim();
     final countryCodePrefix = _countryCodePrefixController.text.trim();
 
@@ -85,6 +91,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     try {
       // Save URLs and country code prefix
       await StorageService.saveMasterSheetUrl(masterUrl);
+      await StorageService.saveMasterWriteApiUrl(masterWriteApiUrl);
       await StorageService.saveLedgerSheetUrl(ledgerUrl);
       await StorageService.saveCountryCodePrefix(countryCodePrefix);
 
@@ -188,6 +195,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       await StorageService.clearAll();
       setState(() {
         _masterSheetUrlController.clear();
+        _masterWriteApiUrlController.clear();
         _ledgerSheetUrlController.clear();
         _countryCodePrefixController.text = '+91'; // Reset to default
         _hasChanges = false;
@@ -271,7 +279,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 '1. Open your Google Sheet with customer and ledger data\n'
                 '2. Go to File → Share → Publish to web\n'
                 '3. Publish both Master and Ledger sheets as CSV\n'
-                '4. Copy the CSV URLs and paste them in Settings',
+                '4. (Optional) Deploy a write API for Master contact updates\n'
+                '5. Copy the URLs and paste them in Settings',
                 style: TextStyle(fontSize: 14),
               ),
               const SizedBox(height: 16),
@@ -370,7 +379,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'To get the CSV URL for each sheet:\n1. Open your Google Sheet\n2. Go to File → Share → Publish to web\n3. Select the specific sheet (Master or Ledger)\n4. Choose CSV format and publish\n5. Copy the generated link',
+                          'To get the sheet URLs:\n1. Open your Google Sheet\n2. Go to File → Share → Publish to web\n3. Select the specific sheet (Master or Ledger)\n4. Choose CSV format and publish\n5. Copy each generated CSV link\n6. Add optional Master Write API URL for contact edit sync',
                           style: TextStyle(
                             color: Colors.blue.shade900,
                             fontSize: 12,
@@ -450,6 +459,84 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             style: OutlinedButton.styleFrom(
                               foregroundColor: Colors.green,
                               side: const BorderSide(color: Colors.green),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                // Master Write API URL Card
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: Colors.orange.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Icon(
+                                Icons.edit_note,
+                                color: Colors.orange,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Master Write API URL',
+                                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                  ),
+                                  Text(
+                                    'Required only for editing master contact details in app',
+                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                          color: Colors.grey.shade600,
+                                        ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        TextField(
+                          controller: _masterWriteApiUrlController,
+                          decoration: const InputDecoration(
+                            hintText: 'https://script.google.com/macros/s/.../exec',
+                            prefixIcon: Icon(Icons.cloud_upload),
+                          ),
+                          maxLines: 2,
+                          keyboardType: TextInputType.url,
+                          onChanged: (_) {
+                            setState(() {
+                              _hasChanges = true;
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: () => _pasteFromClipboard(_masterWriteApiUrlController, 'Master Write API'),
+                            icon: const Icon(Icons.content_paste),
+                            label: const Text('Paste from Clipboard'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.orange,
+                              side: const BorderSide(color: Colors.orange),
                               padding: const EdgeInsets.symmetric(vertical: 12),
                             ),
                           ),
@@ -857,6 +944,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void dispose() {
     _masterSheetUrlController.dispose();
+    _masterWriteApiUrlController.dispose();
     _ledgerSheetUrlController.dispose();
     _countryCodePrefixController.dispose();
     super.dispose();
