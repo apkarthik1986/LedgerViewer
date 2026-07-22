@@ -51,7 +51,7 @@ Your theme preference is saved automatically and persists across app sessions.
    - Repeat for each sheet you need to publish
    
 2. **(Optional for editing) Configure Master Write API URL**:
-   - Deploy a secure write endpoint (for example, Google Apps Script Web App) to update Master contact columns
+   - Deploy a secure write endpoint (Google Apps Script Web App) to update only Master contact columns
    - Add this URL in **Master Write API URL** in app settings
    - Ledger sheet remains read-only and continues to use CSV URL
 
@@ -81,6 +81,126 @@ Your theme preference is saved automatically and persists across app sessions.
 6. **Refresh Data**:
    - Use the refresh button in the Ledger Search screen to update only the master data (customer list)
    - Ledger data is always fetched fresh when you search, so no need to refresh it separately
+
+## Google Apps Script Web App (Master contact sync)
+
+Use this when your Master sheet already exists in Drive and headers must remain unchanged:
+
+`NAME | Mobile No | Area | Group | GPAY | Bank | A/C NO.`
+
+### 1) Add script to the same spreadsheet
+
+- Open the Master spreadsheet in Google Drive
+- Go to **Extensions → Apps Script**
+- Paste this code in `Code.gs` and save:
+
+```javascript
+const MASTER_SHEET_NAME = 'Master'; // Change only if your tab name is different
+
+function doPost(e) {
+  try {
+    if (!e || !e.postData || !e.postData.contents) {
+      return jsonResponse(false, 'Missing request body');
+    }
+
+    const payload = JSON.parse(e.postData.contents);
+    const accountNumber = String(payload.accountNumber || '').trim();
+    if (!accountNumber) {
+      return jsonResponse(false, 'accountNumber is required');
+    }
+
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName(MASTER_SHEET_NAME);
+    if (!sheet) {
+      return jsonResponse(false, `Sheet "${MASTER_SHEET_NAME}" not found`);
+    }
+
+    const values = sheet.getDataRange().getValues();
+    if (values.length < 2) {
+      return jsonResponse(false, 'Master sheet has no data rows');
+    }
+
+    const header = values[0].map(v => String(v).trim().toLowerCase());
+    const idx = {
+      mobile: header.indexOf('mobile no'),
+      area: header.indexOf('area'),
+      group: header.indexOf('group'),
+      gpay: header.indexOf('gpay'),
+      bank: header.indexOf('bank'),
+      account: header.indexOf('a/c no.')
+    };
+
+    if (idx.account < 0) return jsonResponse(false, 'A/C NO. column not found');
+
+    let rowNumber = -1;
+    for (let i = 1; i < values.length; i++) {
+      const rowAccount = String(values[i][idx.account] || '').trim();
+      if (rowAccount === accountNumber) {
+        rowNumber = i + 1; // Sheet rows are 1-based
+        break;
+      }
+    }
+
+    if (rowNumber < 0) {
+      return jsonResponse(false, `No record found for A/C NO.: ${accountNumber}`);
+    }
+
+    // Update only contact fields, never headers
+    if (idx.mobile >= 0 && payload.mobileNo !== undefined) sheet.getRange(rowNumber, idx.mobile + 1).setValue(payload.mobileNo);
+    if (idx.area >= 0 && payload.area !== undefined) sheet.getRange(rowNumber, idx.area + 1).setValue(payload.area);
+    if (idx.group >= 0 && payload.group !== undefined) sheet.getRange(rowNumber, idx.group + 1).setValue(payload.group);
+    if (idx.gpay >= 0 && payload.gpay !== undefined) sheet.getRange(rowNumber, idx.gpay + 1).setValue(payload.gpay);
+    if (idx.bank >= 0 && payload.bank !== undefined) sheet.getRange(rowNumber, idx.bank + 1).setValue(payload.bank);
+
+    return jsonResponse(true, 'Contact details synchronized', {
+      accountNumber,
+      rowNumber,
+      updatedAt: new Date().toISOString()
+    });
+  } catch (error) {
+    return jsonResponse(false, error.message || String(error));
+  }
+}
+
+function jsonResponse(success, message, data) {
+  return ContentService
+    .createTextOutput(JSON.stringify({ success, message, data: data || null }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+```
+
+### 2) Deploy as Web App
+
+- **Deploy → New deployment → Web app**
+- **Execute as:** Me
+- **Who has access:** Anyone (or Anyone with Google account, based on your security needs)
+- Authorize and copy the Web App URL
+- Paste URL into app **Settings → Master Write API URL**
+
+### 3) JSON payload sent from app
+
+```json
+{
+  "action": "update_master_contact",
+  "accountNumber": "133",
+  "customerId": "133",
+  "name": "Arumugam",
+  "mobileNo": "12345466",
+  "mobileNumber": "12345466",
+  "area": "NSK",
+  "group": "Retail",
+  "gpay": "9876543210",
+  "bank": "SBI"
+}
+```
+
+### 4) Verification checklist
+
+1. Send one update for an existing `A/C NO.`
+2. Confirm only that row changes
+3. Confirm header row is unchanged
+4. Confirm other rows are unchanged
+5. Confirm unknown `A/C NO.` returns not-found response
 
 ## Print Format
 
@@ -119,6 +239,9 @@ The app expects CSV data in the following format:
 Master sheet customer identifier (Column A) supports both:
 - `account.name`
 - `account_Savings_name` (first segment is account, last segment is name)
+
+Master sheet contact sync supports fixed headers:
+- `NAME`, `Mobile No`, `Area`, `Group`, `GPAY`, `Bank`, `A/C NO.`
 
 Example:
 ```

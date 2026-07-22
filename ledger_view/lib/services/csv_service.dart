@@ -49,11 +49,17 @@ class CsvService {
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'action': 'update_master_contact',
+          'accountNumber': customer.accountNumber.isNotEmpty
+              ? customer.accountNumber
+              : customer.customerId,
           'customerId': customer.customerId,
           'name': customer.name,
+          'mobileNo': customer.mobileNumber,
           'mobileNumber': customer.mobileNumber,
           'area': customer.area,
+          'group': customer.groupName,
           'gpay': customer.gpay,
+          'bank': customer.bank,
         }),
       );
 
@@ -87,17 +93,18 @@ class CsvService {
     if (data.isEmpty) return [];
 
     final customers = <Customer>[];
+    final headerIndex = _buildHeaderIndex(data.first);
 
     // Skip first row (header)
     for (int i = 1; i < data.length; i++) {
       final row = data[i];
-      if (row.isEmpty ||
-          (row[0].toString().trim().isEmpty &&
-              (row.length < 2 || row[1].toString().trim().isEmpty))) {
+      final isRowEmpty = row.isEmpty ||
+          row.every((cell) => cell.toString().trim().isEmpty);
+      if (isRowEmpty) {
         continue; // Skip empty rows
       }
 
-      final customer = Customer.fromRow(row);
+      final customer = Customer.fromRow(row, headerIndex: headerIndex);
       // Only add customers with at least an ID or name
       if (customer.customerId.isNotEmpty || customer.name.isNotEmpty) {
         customers.add(customer);
@@ -358,6 +365,17 @@ class CsvService {
     ];
     if (month >= 1 && month <= 12) {
       return months[month];
+    }
+
+    static Map<String, int> _buildHeaderIndex(List<dynamic> headerRow) {
+      final index = <String, int>{};
+      for (int i = 0; i < headerRow.length; i++) {
+        final key = headerRow[i].toString().trim().toLowerCase();
+        if (key.isNotEmpty && !index.containsKey(key)) {
+          index[key] = i;
+        }
+      }
+      return index;
     }
     return month.toString();
   }
