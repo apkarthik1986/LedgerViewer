@@ -366,18 +366,18 @@ class CsvService {
     if (month >= 1 && month <= 12) {
       return months[month];
     }
-
-    static Map<String, int> _buildHeaderIndex(List<dynamic> headerRow) {
-      final index = <String, int>{};
-      for (int i = 0; i < headerRow.length; i++) {
-        final key = headerRow[i].toString().trim().toLowerCase();
-        if (key.isNotEmpty && !index.containsKey(key)) {
-          index[key] = i;
-        }
-      }
-      return index;
-    }
     return month.toString();
+  }
+
+  static Map<String, int> _buildHeaderIndex(List<dynamic> headerRow) {
+    final index = <String, int>{};
+    for (int i = 0; i < headerRow.length; i++) {
+      final key = headerRow[i].toString().trim().toLowerCase();
+      if (key.isNotEmpty && !index.containsKey(key)) {
+        index[key] = i;
+      }
+    }
+    return index;
   }
 
   /// Analyze customer balances from ledger data
