@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
 import 'package:ledger_view/services/csv_service.dart';
 import 'package:ledger_view/models/ledger_entry.dart';
 import 'package:ledger_view/models/customer.dart';
@@ -185,6 +186,87 @@ void main() {
       final customers = CsvService.parseCustomerData([]);
       
       expect(customers, isEmpty);
+    });
+  });
+
+  group('CsvService - Master Write API', () {
+    const testCustomer = Customer(
+      customerId: '133',
+      name: 'Arumugam',
+      mobileNumber: '12345466',
+      area: 'NSK',
+      groupName: 'Retail',
+      gpay: '9876543210',
+      bank: 'SBI',
+      accountNumber: '133',
+    );
+
+    test('updateMasterContactDetails throws when API returns success false', () async {
+      await expectLater(
+        CsvService.updateMasterContactDetails(
+          writeApiUrl: 'https://example.com/write',
+          customer: testCustomer,
+          postJson: (_, __) async => http.Response(
+            jsonEncode({
+              'success': false,
+              'message': 'No record found for A/C NO.: 133',
+            }),
+            200,
+          ),
+        ),
+        throwsA(
+          isA<Exception>().having(
+            (error) => error.toString(),
+            'message',
+            contains('No record found for A/C NO.: 133'),
+          ),
+        ),
+      );
+    });
+
+    test('updateMasterContactDetails keeps POST body when following redirect', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(server.close);
+
+      String? redirectedMethod;
+      String? redirectedBody;
+
+      server.listen((request) async {
+        if (request.uri.path == '/write') {
+          request.response
+            ..statusCode = HttpStatus.found
+            ..headers.set(
+              HttpHeaders.locationHeader,
+              'http://${server.address.host}:${server.port}/final',
+            );
+          await request.response.close();
+          return;
+        }
+
+        if (request.uri.path == '/final') {
+          redirectedMethod = request.method;
+          redirectedBody = await utf8.decoder.bind(request).join();
+          request.response
+            ..statusCode = HttpStatus.ok
+            ..headers.contentType = ContentType.json
+            ..write(jsonEncode({'success': true}));
+          await request.response.close();
+          return;
+        }
+
+        request.response.statusCode = HttpStatus.notFound;
+        await request.response.close();
+      });
+
+      await CsvService.updateMasterContactDetails(
+        writeApiUrl: 'http://${server.address.host}:${server.port}/write',
+        customer: testCustomer,
+      );
+
+      expect(redirectedMethod, equals('POST'));
+      expect(redirectedBody, isNotEmpty);
+      expect(redirectedBody, contains('"accountNumber":"133"'));
+      expect(redirectedBody, contains('"mobileNo":"12345466"'));
     });
   });
 

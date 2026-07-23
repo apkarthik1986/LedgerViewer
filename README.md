@@ -111,12 +111,14 @@ function doPost(e) {
     }
 
     const values = sheet.getDataRange().getValues();
-    if (values.length < 2) {
-      return jsonResponse(false, 'Master sheet has no data rows');
+    if (values.length < 1) {
+      return jsonResponse(false, 'Master sheet has no headers');
     }
 
+    // Get column indices based on Header Row (Row 1)
     const header = values[0].map(v => String(v).trim().toLowerCase());
     const idx = {
+      name: header.indexOf('name'),
       mobile: header.indexOf('mobile no'),
       area: header.indexOf('area'),
       group: header.indexOf('group'),
@@ -128,6 +130,7 @@ function doPost(e) {
     if (idx.account < 0) return jsonResponse(false, 'A/C NO. column not found');
 
     let rowNumber = -1;
+    // Check if account number already exists
     for (let i = 1; i < values.length; i++) {
       const rowAccount = String(values[i][idx.account] || '').trim();
       if (rowAccount === accountNumber) {
@@ -136,22 +139,46 @@ function doPost(e) {
       }
     }
 
-    if (rowNumber < 0) {
-      return jsonResponse(false, `No record found for A/C NO.: ${accountNumber}`);
+    // --- IF RECORD EXISTS: UPDATE ROW ---
+    if (rowNumber > 0) {
+      if (idx.name >= 0 && payload.name !== undefined) sheet.getRange(rowNumber, idx.name + 1).setValue(payload.name);
+      if (idx.mobile >= 0 && (payload.mobileNo !== undefined || payload.phone !== undefined)) {
+        sheet.getRange(rowNumber, idx.mobile + 1).setValue(payload.mobileNo || payload.phone);
+      }
+      if (idx.area >= 0 && payload.area !== undefined) sheet.getRange(rowNumber, idx.area + 1).setValue(payload.area);
+      if (idx.group >= 0 && payload.group !== undefined) sheet.getRange(rowNumber, idx.group + 1).setValue(payload.group);
+      if (idx.gpay >= 0 && payload.gpay !== undefined) sheet.getRange(rowNumber, idx.gpay + 1).setValue(payload.gpay);
+      if (idx.bank >= 0 && payload.bank !== undefined) sheet.getRange(rowNumber, idx.bank + 1).setValue(payload.bank);
+
+      return jsonResponse(true, 'Contact details updated successfully', {
+        accountNumber,
+        rowNumber,
+        action: 'updated',
+        updatedAt: new Date().toISOString()
+      });
     }
 
-    // Update only contact fields, never headers
-    if (idx.mobile >= 0 && payload.mobileNo !== undefined) sheet.getRange(rowNumber, idx.mobile + 1).setValue(payload.mobileNo);
-    if (idx.area >= 0 && payload.area !== undefined) sheet.getRange(rowNumber, idx.area + 1).setValue(payload.area);
-    if (idx.group >= 0 && payload.group !== undefined) sheet.getRange(rowNumber, idx.group + 1).setValue(payload.group);
-    if (idx.gpay >= 0 && payload.gpay !== undefined) sheet.getRange(rowNumber, idx.gpay + 1).setValue(payload.gpay);
-    if (idx.bank >= 0 && payload.bank !== undefined) sheet.getRange(rowNumber, idx.bank + 1).setValue(payload.bank);
+    // --- IF RECORD DOES NOT EXIST: CREATE NEW ROW ---
+    const newRow = new Array(header.length).fill(''); // Construct empty row matching header length
 
-    return jsonResponse(true, 'Contact details synchronized', {
+    if (idx.name >= 0) newRow[idx.name] = payload.name || '';
+    if (idx.mobile >= 0) newRow[idx.mobile] = payload.mobileNo || payload.phone || '';
+    if (idx.area >= 0) newRow[idx.area] = payload.area || '';
+    if (idx.group >= 0) newRow[idx.group] = payload.group || '';
+    if (idx.gpay >= 0) newRow[idx.gpay] = payload.gpay || '';
+    if (idx.bank >= 0) newRow[idx.bank] = payload.bank || '';
+    if (idx.account >= 0) newRow[idx.account] = accountNumber;
+
+    sheet.appendRow(newRow);
+    const newRowNumber = sheet.getLastRow();
+
+    return jsonResponse(true, 'New contact added successfully', {
       accountNumber,
-      rowNumber,
-      updatedAt: new Date().toISOString()
+      rowNumber: newRowNumber,
+      action: 'created',
+      createdAt: new Date().toISOString()
     });
+
   } catch (error) {
     return jsonResponse(false, error.message || String(error));
   }
@@ -179,7 +206,7 @@ function jsonResponse(success, message, data) {
   "action": "update_master_contact",
   "accountNumber": "133",
   "customerId": "133",
-  "name": "Arumugam",
+  "name": "133.Arumugam",
   "mobileNo": "12345466",
   "mobileNumber": "12345466",
   "area": "NSK",
@@ -191,11 +218,11 @@ function jsonResponse(success, message, data) {
 
 ### 4) Verification checklist
 
-1. Send one update for an existing `A/C NO.`
-2. Confirm only that row changes
+1. Send one update for an existing `A/C NO.` → response `"action": "updated"`
+2. Confirm that row's Name, Mobile No, Area, Group, GPAY, Bank are changed
 3. Confirm header row is unchanged
 4. Confirm other rows are unchanged
-5. Confirm unknown `A/C NO.` returns not-found response
+5. Send a payload with a new `A/C NO.` → response `"action": "created"`, new row appended
 
 ## Print Format
 
@@ -237,6 +264,22 @@ Master sheet customer identifier (Column A) supports both:
 
 Master sheet contact sync supports fixed headers:
 - `NAME`, `Mobile No`, `Area`, `Group`, `GPAY`, `Bank`, `A/C NO.`
+
+### Master/Input Excel format
+
+If you prepare the source in Excel, keep the first row as these exact headers before uploading/importing it into Google Sheets:
+
+| NAME | Mobile No | Area | Group | GPAY | Bank | A/C NO. |
+| --- | --- | --- | --- | --- | --- | --- |
+| 133.Arumugam | 12345466 | NSK | Retail | 9876543210 | SBI | 133 |
+| 254.Murugesan | 98745621 | Thiruverkadu | Wholesale | 8765432109 | HDFC | 254 |
+
+Notes:
+- `A/C NO.` must be unique for each customer — the write/sync script uses it to find (or create) the row.
+- `NAME` should normally be `accountNumber.customerName` (example: `133.Arumugam`).
+- The write API updates `NAME`, `Mobile No`, `Area`, `Group`, `GPAY`, and `Bank`.
+- If a `A/C NO.` does **not** exist yet, the script automatically **appends a new row** (upsert behaviour).
+- Keep the header spellings unchanged, especially `Mobile No` and `A/C NO.`.
 
 Example:
 ```

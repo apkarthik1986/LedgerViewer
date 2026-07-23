@@ -71,6 +71,7 @@ class CsvService {
   static Future<void> updateMasterContactDetails({
     required String writeApiUrl,
     required Customer customer,
+    Future<http.Response> Function(Uri uri, String body)? postJson,
   }) async {
     try {
       final payload = jsonEncode({
@@ -88,7 +89,7 @@ class CsvService {
         'bank': customer.bank,
       });
 
-      final response = await _postJsonFollowingRedirects(
+      final response = await (postJson ?? _postJsonFollowingRedirects)(
         Uri.parse(writeApiUrl),
         payload,
       );
@@ -109,7 +110,7 @@ class CsvService {
               'Unknown error from master write API';
           throw Exception(message);
         }
-      } catch (_) {
+      } on FormatException {
         // Non-JSON responses are accepted as long as status code is successful
       }
     } catch (e) {
@@ -156,9 +157,7 @@ class CsvService {
         }
 
         currentUri = currentUri.resolve(location);
-        if (response.statusCode == 303 ||
-            response.statusCode == 301 ||
-            response.statusCode == 302) {
+        if (response.statusCode == 303) {
           method = 'GET';
           currentBody = null;
         }
