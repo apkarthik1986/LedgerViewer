@@ -157,7 +157,11 @@ class CsvService {
         }
 
         currentUri = currentUri.resolve(location);
-        if (response.statusCode == 303) {
+        // 301, 302, 303: Switch to GET (browser-standard behaviour used by Google Apps Script)
+        // 307, 308: Keep the original method
+        if (response.statusCode == 301 ||
+            response.statusCode == 302 ||
+            response.statusCode == 303) {
           method = 'GET';
           currentBody = null;
         }
