@@ -238,6 +238,21 @@ Master sheet customer identifier (Column A) supports both:
 Master sheet contact sync supports fixed headers:
 - `NAME`, `Mobile No`, `Area`, `Group`, `GPAY`, `Bank`, `A/C NO.`
 
+### Master/Input Excel format
+
+If you prepare the source in Excel, keep the first row as these exact headers before uploading/importing it into Google Sheets:
+
+| NAME | Mobile No | Area | Group | GPAY | Bank | A/C NO. |
+| --- | --- | --- | --- | --- | --- | --- |
+| 133.Arumugam | 12345466 | NSK | Retail | 9876543210 | SBI | 133 |
+| 254.Murugesan | 98745621 | Thiruverkadu | Wholesale | 8765432109 | HDFC | 254 |
+
+Notes:
+- `A/C NO.` must be unique for each customer because write/sync uses it to find the row to update.
+- `NAME` should normally be `accountNumber.customerName` (example: `133.Arumugam`).
+- The write API updates only `Mobile No`, `Area`, `Group`, `GPAY`, and `Bank`.
+- Keep the header spellings unchanged, especially `Mobile No` and `A/C NO.`.
+
 Example:
 ```
 Ledger:,1139B.Pushpa Malliga Teacher,1-Apr-2025 to 23-Nov-2025,,,
