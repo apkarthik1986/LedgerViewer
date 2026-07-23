@@ -65,7 +65,7 @@ class LedgerDisplay extends StatelessWidget {
                       Text(
                         result.dateRange,
                         style: TextStyle(
-                          color: Colors.white.withOpacity(0.9),
+                          color: Colors.white.withValues(alpha: 0.9),
                           fontSize: 14,
                         ),
                       ),
@@ -78,7 +78,7 @@ class LedgerDisplay extends StatelessWidget {
                   icon: const Icon(Icons.print, color: Colors.white),
                   tooltip: 'Print Ledger',
                   style: IconButton.styleFrom(
-                    backgroundColor: Colors.white.withOpacity(0.2),
+                    backgroundColor: Colors.white.withValues(alpha: 0.2),
                   ),
                 ),
                 // Share Button
@@ -697,13 +697,13 @@ class LedgerDisplay extends StatelessWidget {
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                debitColor.withOpacity(0.1),
-                debitColor.withOpacity(0.05),
+                debitColor.withValues(alpha: 0.1),
+                debitColor.withValues(alpha: 0.05),
               ],
             ),
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
-              color: debitColor.withOpacity(0.3),
+              color: debitColor.withValues(alpha: 0.3),
             ),
           ),
           child: Row(
@@ -737,13 +737,13 @@ class LedgerDisplay extends StatelessWidget {
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                creditColor.withOpacity(0.1),
-                creditColor.withOpacity(0.05),
+                creditColor.withValues(alpha: 0.1),
+                creditColor.withValues(alpha: 0.05),
               ],
             ),
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
-              color: creditColor.withOpacity(0.3),
+              color: creditColor.withValues(alpha: 0.3),
             ),
           ),
           child: Row(
@@ -780,13 +780,13 @@ class LedgerDisplay extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            balanceColor.withOpacity(0.15),
-            balanceColor.withOpacity(0.08),
+            balanceColor.withValues(alpha: 0.15),
+            balanceColor.withValues(alpha: 0.08),
           ],
         ),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: balanceColor.withOpacity(0.3),
+          color: balanceColor.withValues(alpha: 0.3),
         ),
       ),
       child: Row(
