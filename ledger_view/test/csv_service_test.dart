@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ledger_view/services/csv_service.dart';
 import 'package:ledger_view/models/ledger_entry.dart';
@@ -350,6 +353,91 @@ void main() {
       );
       
       expect(entry.isEmpty, isFalse);
+    });
+  });
+
+  group('CsvService - Master contact sync', () {
+    test('follows 302 redirect and accepts success response', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(server.close);
+
+      final baseUrl = 'http://${server.address.host}:${server.port}';
+
+      server.listen((HttpRequest request) async {
+        if (request.uri.path == '/sync') {
+          request.response.statusCode = HttpStatus.found;
+          request.response.headers.set(HttpHeaders.locationHeader, '$baseUrl/result');
+          await request.response.close();
+          return;
+        }
+
+        if (request.uri.path == '/result' && request.method == 'GET') {
+          request.response.statusCode = HttpStatus.ok;
+          request.response.headers.contentType = ContentType.json;
+          request.response.write(jsonEncode({'success': true, 'message': 'ok'}));
+          await request.response.close();
+          return;
+        }
+
+        request.response.statusCode = HttpStatus.methodNotAllowed;
+        await request.response.close();
+      });
+
+      await CsvService.updateMasterContactDetails(
+        writeApiUrl: '$baseUrl/sync',
+        customer: const Customer(
+          customerId: '133',
+          name: 'Arumugam',
+          mobileNumber: '12345466',
+          accountNumber: '133',
+        ),
+      );
+    });
+
+    test('throws when redirected response returns API failure', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(server.close);
+
+      final baseUrl = 'http://${server.address.host}:${server.port}';
+
+      server.listen((HttpRequest request) async {
+        if (request.uri.path == '/sync') {
+          request.response.statusCode = HttpStatus.found;
+          request.response.headers.set(HttpHeaders.locationHeader, '$baseUrl/result');
+          await request.response.close();
+          return;
+        }
+
+        if (request.uri.path == '/result' && request.method == 'GET') {
+          request.response.statusCode = HttpStatus.ok;
+          request.response.headers.contentType = ContentType.json;
+          request.response.write(
+            jsonEncode({'success': false, 'message': 'No record found'}),
+          );
+          await request.response.close();
+          return;
+        }
+
+        request.response.statusCode = HttpStatus.notFound;
+        await request.response.close();
+      });
+
+      await expectLater(
+        () => CsvService.updateMasterContactDetails(
+          writeApiUrl: '$baseUrl/sync',
+          customer: const Customer(
+            customerId: '133',
+            name: 'Arumugam',
+            mobileNumber: '12345466',
+            accountNumber: '133',
+          ),
+        ),
+        throwsA(
+          predicate(
+            (e) => e.toString().contains('No record found'),
+          ),
+        ),
+      );
     });
   });
 }
