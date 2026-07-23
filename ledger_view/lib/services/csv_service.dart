@@ -8,6 +8,35 @@ import '../models/customer.dart';
 import '../models/customer_balance.dart';
 
 class CsvService {
+  /// Extract the spreadsheet ID from any Google Sheets URL.
+  ///
+  /// Supports share links, edit links, and CSV publish links.
+  /// Returns null if the URL does not contain a recognisable spreadsheet ID.
+  static String? extractSpreadsheetId(String url) {
+    final uri = Uri.tryParse(url.trim());
+    if (uri == null) return null;
+    // Pattern: /spreadsheets/d/{ID}[/...]
+    final match = RegExp(r'/spreadsheets/d/([a-zA-Z0-9_-]+)').firstMatch(uri.path);
+    return match?.group(1);
+  }
+
+  /// Build a CSV export URL from a spreadsheet ID and a sheet (tab) name.
+  ///
+  /// Uses the gviz/tq endpoint which works for any publicly viewable sheet
+  /// without requiring "Publish to web".
+  static String buildCsvExportUrl(String spreadsheetId, String tabName) {
+    final encoded = Uri.encodeQueryComponent(tabName);
+    return 'https://docs.google.com/spreadsheets/d/$spreadsheetId/gviz/tq?tqx=out:csv&sheet=$encoded';
+  }
+
+  /// Convenience helper: given a raw Google Sheets URL and a tab name, produce
+  /// the CSV export URL.  Returns null when the spreadsheet ID cannot be parsed.
+  static String? buildCsvUrlFromSheetUrl(String sheetUrl, String tabName) {
+    final id = extractSpreadsheetId(sheetUrl);
+    if (id == null) return null;
+    return buildCsvExportUrl(id, tabName);
+  }
+
   /// Fetch and parse data from an Excel file (.xlsx) and select a sheet
   static Future<List<List<dynamic>>> fetchExcelSheetData(String filePath, String sheetName) async {
     // filePath: local path to .xlsx file

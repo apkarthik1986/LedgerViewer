@@ -15,6 +15,13 @@ class StorageService {
   static const String _countryCodePrefixKey = 'country_code_prefix';
   static const String _defaultCountryCodePrefix = '+91';
 
+  // Simple-mode inputs
+  static const String _spreadsheetUrlKey = 'spreadsheet_url';
+  static const String _masterTabNameKey = 'master_tab_name';
+  static const String _ledgerTabNameKey = 'ledger_tab_name';
+  static const String _defaultMasterTabName = 'Master';
+  static const String _defaultLedgerTabName = 'Ledger';
+
   static Future<SharedPreferences> _getPrefs() async {
     return await SharedPreferences.getInstance();
   }
@@ -163,6 +170,42 @@ class StorageService {
   static Future<String> getCountryCodePrefix() async {
     final prefs = await _getPrefs();
     return prefs.getString(_countryCodePrefixKey) ?? _defaultCountryCodePrefix;
+  }
+
+  /// Save the Google Sheets share/edit URL (simple mode)
+  static Future<void> saveSpreadsheetUrl(String url) async {
+    final prefs = await _getPrefs();
+    await prefs.setString(_spreadsheetUrlKey, url);
+  }
+
+  /// Get the Google Sheets share/edit URL (simple mode)
+  static Future<String?> getSpreadsheetUrl() async {
+    final prefs = await _getPrefs();
+    return prefs.getString(_spreadsheetUrlKey);
+  }
+
+  /// Save the Master tab name (simple mode)
+  static Future<void> saveMasterTabName(String name) async {
+    final prefs = await _getPrefs();
+    await prefs.setString(_masterTabNameKey, name);
+  }
+
+  /// Get the Master tab name (simple mode), default 'Master'
+  static Future<String> getMasterTabName() async {
+    final prefs = await _getPrefs();
+    return prefs.getString(_masterTabNameKey) ?? _defaultMasterTabName;
+  }
+
+  /// Save the Ledger tab name (simple mode)
+  static Future<void> saveLedgerTabName(String name) async {
+    final prefs = await _getPrefs();
+    await prefs.setString(_ledgerTabNameKey, name);
+  }
+
+  /// Get the Ledger tab name (simple mode), default 'Ledger'
+  static Future<String> getLedgerTabName() async {
+    final prefs = await _getPrefs();
+    return prefs.getString(_ledgerTabNameKey) ?? _defaultLedgerTabName;
   }
 
   /// Clear all settings (reset)
