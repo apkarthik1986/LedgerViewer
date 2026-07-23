@@ -20,7 +20,7 @@ A modern Flutter Android app to view customer ledger data from Google Sheets CSV
 
 The app contains 4 main screens accessible via bottom navigation:
 
-1. **Settings** - Configure the Google Sheets CSV URLs for Master sheet (customer list) and Ledger sheet (ledger data). Also customize the app theme to your preference.
+1. **Settings** - Paste your Google Sheets share link and enter the tab names for Master and Ledger sheets. Tap *Test Connection* to verify, then Save. Advanced users can override the CSV URLs manually or add a Master Write API URL for contact editing. Also choose the app theme.
 2. **Ledger Search** - Search for customer ledgers directly by entering a customer number, name, or mobile number, and edit master contact details
 3. **Analysis** - Analyze customer balances with advanced filtering options:
    - Filter by balance amount (greater than or less than a specified amount)
@@ -42,45 +42,40 @@ Your theme preference is saved automatically and persists across app sessions.
 
 ## Setup
 
-1. **Configure Google Sheets CSV URLs**:
-   - Open your Google Sheet containing ledger data
-   - Go to **File → Share → Publish to web**
-   - **Important**: Select the specific sheet to publish (Master or Ledger), not the entire document
-   - Select **CSV** format
-   - Click **Publish** and copy the generated link
-   - Repeat for each sheet you need to publish
-   
-2. **(Optional for editing) Configure Master Write API URL**:
-   - Deploy a secure write endpoint (Google Apps Script Web App) to update only Master contact columns
-   - Add this URL in **Master Write API URL** in app settings
-   - Ledger sheet remains read-only and continues to use CSV URL
+1. **Share your Google Sheet**:
+   - Open your Google Sheet containing customer and ledger data
+   - Click **Share** (top-right) → **Anyone with the link** → **Viewer**
+   - Copy the link from the browser address bar (it looks like  
+     `https://docs.google.com/spreadsheets/d/SPREADSHEET_ID/edit…`)
 
-3. **In the app's Settings page, configure required URLs**:
-   - **Master Sheet URL**: The CSV link for your customer list (Master sheet)
-   - **Master Write API URL**: Required only when editing/syncing master contact details from app
-   - **Ledger Sheet URL**: The CSV link for your ledger data (Ledger sheet)
-   - **WhatsApp Country Code**: Set the default country code prefix (default: +91) for WhatsApp sharing
+2. **Configure the app's Settings page**:
+   - **Google Sheets Link**: Paste the share link copied above
+   - **Master Tab Name**: The exact name of the sheet tab for customer data (default: `Master`)
+   - **Ledger Tab Name**: The exact name of the sheet tab for ledger data (default: `Ledger`)
+   - Tap **Test Connection** to verify both tabs are readable, then tap **Save Settings**
+
+3. **(Optional) Configure Advanced settings** (expand the *Advanced: Manual URL Override* section):
+   - **Master Sheet URL**: Paste a manually prepared CSV publish link if needed  
+     (File → Share → Publish to web → CSV)
+   - **Ledger Sheet URL**: Same for the Ledger sheet
+   - **Master Write API URL**: Required only when editing/syncing master contact details from the app
 
 4. **Search for Ledger**:
-   - Use the **Ledger Search** tab to enter a customer number, name, or mobile number (e.g., "1033", "1035", "1139B", "1525", "Pushpa", "9876543210")
-   - The search field supports text input for flexible searching
+   - Use the **Ledger Search** tab to enter a customer number, name, or mobile number
    - Or use the **Customers** tab to browse and click on a customer to view their ledger
    - Ledger data is fetched fresh from Google Sheets on each search
-   
+
 5. **Share Ledger**:
-   - From the ledger view, tap the share button to access sharing options in the following order:
+   - From the ledger view, tap the share button to access sharing options:
      1. **WhatsApp (PDF)** - Share ledger as PDF via WhatsApp
      2. **WhatsApp (Image)** - Share ledger as image via WhatsApp
      3. **Share as PDF** - Share ledger as PDF via other apps
      4. **Share as Image** - Share ledger as image via other apps
      5. **Share SMS** - Send ledger summary via SMS
-   - For WhatsApp and SMS options, enter the recipient's 10-digit mobile number (country code will be added automatically)
-   - WhatsApp will open with the file ready to send to the specified contact
-   - SMS will open with a text summary of the ledger including totals and balance
-   
+
 6. **Refresh Data**:
    - Use the refresh button in the Ledger Search screen to update only the master data (customer list)
-   - Ledger data is always fetched fresh when you search, so no need to refresh it separately
+   - Ledger data is always fetched fresh when you search
 
 ## Google Apps Script Web App (Master contact sync)
 
