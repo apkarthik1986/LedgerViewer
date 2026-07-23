@@ -749,7 +749,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                     Container(
                                       padding: const EdgeInsets.all(8),
                                       decoration: BoxDecoration(
-                                        Colors.green.withValues(alpha: 0.1),
+                                        Colors.green.withOpacity(0.1),
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: const Icon(Icons.people, color: Colors.green, size: 20),
