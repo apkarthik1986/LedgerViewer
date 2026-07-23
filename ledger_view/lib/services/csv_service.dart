@@ -44,23 +44,24 @@ class CsvService {
     required Customer customer,
   }) async {
     try {
-      final response = await http.post(
+      final payload = jsonEncode({
+        'action': 'update_master_contact',
+        'accountNumber': customer.accountNumber.isNotEmpty
+            ? customer.accountNumber
+            : customer.customerId,
+        'customerId': customer.customerId,
+        'name': customer.name,
+        'mobileNo': customer.mobileNumber,
+        'mobileNumber': customer.mobileNumber,
+        'area': customer.area,
+        'group': customer.groupName,
+        'gpay': customer.gpay,
+        'bank': customer.bank,
+      });
+
+      final response = await _postJsonFollowingRedirects(
         Uri.parse(writeApiUrl),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'action': 'update_master_contact',
-          'accountNumber': customer.accountNumber.isNotEmpty
-              ? customer.accountNumber
-              : customer.customerId,
-          'customerId': customer.customerId,
-          'name': customer.name,
-          'mobileNo': customer.mobileNumber,
-          'mobileNumber': customer.mobileNumber,
-          'area': customer.area,
-          'group': customer.groupName,
-          'gpay': customer.gpay,
-          'bank': customer.bank,
-        }),
+        payload,
       );
 
       if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -84,6 +85,57 @@ class CsvService {
       }
     } catch (e) {
       throw Exception('Error updating master contact details: $e');
+    }
+  }
+
+  static Future<http.Response> _postJsonFollowingRedirects(
+    Uri uri,
+    String body,
+  ) async {
+    const redirectStatusCodes = {301, 302, 303, 307, 308};
+    final client = http.Client();
+    try {
+      Uri currentUri = uri;
+      String method = 'POST';
+      String? currentBody = body;
+      int redirects = 0;
+
+      while (true) {
+        final request = http.Request(method, currentUri)
+          ..followRedirects = false
+          ..headers['Content-Type'] = 'application/json';
+
+        if (currentBody != null) {
+          request.body = currentBody;
+        }
+
+        final streamed = await client.send(request);
+        final response = await http.Response.fromStream(streamed);
+
+        if (!redirectStatusCodes.contains(response.statusCode)) {
+          return response;
+        }
+
+        final location = response.headers['location'];
+        if (location == null || location.trim().isEmpty) {
+          return response;
+        }
+
+        redirects++;
+        if (redirects > 5) {
+          throw Exception('Too many redirects while syncing master contact');
+        }
+
+        currentUri = currentUri.resolve(location);
+        if (response.statusCode == 303 ||
+            response.statusCode == 301 ||
+            response.statusCode == 302) {
+          method = 'GET';
+          currentBody = null;
+        }
+      }
+    } finally {
+      client.close();
     }
   }
 
